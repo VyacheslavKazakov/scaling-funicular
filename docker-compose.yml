@@ -1,0 +1,36 @@
+# docker-compose.yml
+
+---
+services:
+  cachedb:
+    image: docker.io/library/redis:latest
+    restart: unless-stopped
+    volumes:
+      - cachedb_store:/data
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: sf:${TAG:-latest}
+    init: true
+    restart: unless-stopped
+    build: .
+    ports:
+      - "8008:8008"
+    env_file:
+      - .env
+    depends_on:
+      cachedb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "sh", "-c", 'curl http://127.0.0.1:8008/api/v1/healthcheck/ -w "%{http_code}" -L -o /dev/null -s | grep "^200$" || exit 1' ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes:
+  cachedb_store:

@@ -6,15 +6,20 @@ from typing import AsyncIterator, Callable, Any
 import uvicorn
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import ORJSONResponse
+from redis.asyncio import Redis
+from redis.backoff import ExponentialBackoff
+from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
+from redis.asyncio.retry import Retry
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 import src.constants as const
 from src.api.schemas import BaseExceptionBody
 from src.api.v1.answers.routers import router as answers_router
+from src.api.v1.healthcheck.routers import router as healthcheck_router
 
 from src.core.config import settings
 from src.core.logger import LOGGING
-
+from src.db import caches
 
 logging_config.dictConfig(LOGGING)
 logger = logging.getLogger(__name__)
@@ -27,11 +32,27 @@ v1_router = APIRouter(
 )
 
 v1_router.include_router(answers_router)
+v1_router.include_router(healthcheck_router)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    caches.cache = caches.RedisCacheStorage(
+        client=Redis(
+            host=settings.cache_host,
+            port=settings.cache_port,
+            db=settings.cache_db,
+            retry=Retry(
+                ExponentialBackoff(cap=10, base=0.1),
+                retries=5,
+            ),
+            retry_on_error=[BusyLoadingError, ConnectionError, TimeoutError],
+        )
+    )
+
     yield
+
+    await caches.cache.close()
 
 
 app = FastAPI(
@@ -74,5 +95,6 @@ if __name__ == "__main__":
         port=settings.listen_port,
         log_config=LOGGING,
         log_level=settings.log_level.lower(),
-        reload=True,
+        workers=settings.workers,
+        reload=settings.debug,
     )

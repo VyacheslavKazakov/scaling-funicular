@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     )
     secret_key: str = "50ae6b6f23a914d61c65b7bf6124107d73b47e0303c4da828c06092d1a18b056"
 
+    cache_host: str = "cachedb"
+    cache_port: int = 6379
+    cache_db: int = 1
+    cache_ttl_in_seconds: int = 60
+    cache_prefix: str = "sf"
+
     default_model: str = Field(default="gpt-5-mini", alias="MODEL")
     openai_api_key: str = Field(default="dummy", alias="KEY")
     default_temperature: float = 0.0
@@ -26,6 +32,7 @@ class Settings(BaseSettings):
 
     default_prompt: str = "You are a helpful assistant. Answer the user's math question. Only answer, no comments."
 
+    workers: int = 1
     debug: bool = False
     log_level: str = "INFO"
 
