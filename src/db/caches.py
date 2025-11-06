@@ -7,23 +7,20 @@ import orjson
 from redis.asyncio import Redis
 
 from src.core.config import settings
-from src.db.storages import CacheBaseStorage
 
 logger = logging.getLogger(__name__)
 
 
-class RedisCacheStorage(CacheBaseStorage):
+class RedisCacheStorage:
     def __init__(self, client: Redis) -> None:
-        super().__init__(client=client)
+        self.client = client
 
     async def get_object(
         self, source: str, obj_id: str | int | None = None, **kwargs
     ) -> str | None:
         return await self.client.get(source)
 
-    async def set_object(
-        self, source: str,  **kwargs
-    ) -> None:
+    async def set_object(self, source: str, **kwargs) -> None:
         await self.client.set(name=source, **kwargs)
 
     async def close(self) -> None:
@@ -60,7 +57,7 @@ def cache_deco(
                 if cache:
                     await cache.set_object(
                         source=cache_key,
-                        value=data,
+                        value=orjson.dumps(data),
                         ex=expire_in_seconds,
                     )
             return data

@@ -63,9 +63,7 @@ app = FastAPI(
     openapi_url="/api/v1/docs.json",
     default_response_class=ORJSONResponse,
     lifespan=lifespan,
-    swagger_ui_parameters={
-        "defaultModelsExpandDepth": 0
-    },  # -1 value hides the Schemas section from the docs
+    swagger_ui_parameters={"defaultModelsExpandDepth": 0},
 )
 
 app.include_router(v1_router)

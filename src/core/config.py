@@ -30,8 +30,6 @@ class Settings(BaseSettings):
     default_temperature: float = 0.0
     default_max_tokens: int = 4096
 
-    default_prompt: str = "You are a helpful assistant. Answer the user's math question. Only answer, no comments."
-
     workers: int = 1
     debug: bool = False
     log_level: str = "INFO"
