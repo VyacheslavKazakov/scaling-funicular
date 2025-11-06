@@ -6,12 +6,12 @@ from fastapi import APIRouter, status, Depends, Query
 from src.api.v1.answers.schemas import AnswerGetSchema
 from src.api.v1.answers.services import AnswerService, get_answer_service
 
-router = APIRouter(prefix="/get_answer", tags=["Answers"])
+router = APIRouter(tags=["Answers"])
 logger = logging.getLogger(__name__)
 
 
 @router.get(
-    "/",
+    "/get_answer",
     summary="Get answer.",
     status_code=status.HTTP_200_OK,
     description="Get answers.",

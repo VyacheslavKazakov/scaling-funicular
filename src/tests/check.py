@@ -1,6 +1,6 @@
 import os
 from typing import Any
-
+import requests
 from openai import OpenAI
 import json
 from dotenv import load_dotenv
@@ -41,8 +41,8 @@ def validate_answer(
     response = client.chat.completions.create(
         model=model,
         messages=messages,
-        max_tokens=32,
-        temperature=0.7,
+        max_completion_tokens=32,
+        # temperature=0.7,
     )
 
     response_str_original = response.choices[0].message.content
@@ -62,7 +62,7 @@ if __name__ == "__main__":
     load_dotenv()
     client = OpenAI(
         api_key=os.getenv("KEY"),
-        base_url=os.getenv("URL"),
+        # base_url=os.getenv("URL"),
     )
 
     with open("train.json", "r") as fd:
@@ -72,8 +72,15 @@ if __name__ == "__main__":
 
     start_time = time()
     for item in train[:5]:
+        response = requests.get(
+            f"http://localhost:8008/get_answer?question={item['question']}"
+        )
         score = validate_answer(
-            client, os.getenv("MODEL"), item["question"], item["answer"], item["answer"]
+            client,
+            os.getenv("MODEL"),
+            item["question"],
+            item["answer"],
+            response.json().get("answer"),
         )
         lst_scores.append(score)
     time_validate = time() - start_time
