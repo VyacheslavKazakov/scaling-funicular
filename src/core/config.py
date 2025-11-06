@@ -17,7 +17,6 @@ class Settings(BaseSettings):
         "127.0.0.1",
         "0.0.0.0",
     )
-    secret_key: str = "50ae6b6f23a914d61c65b7bf6124107d73b47e0303c4da828c06092d1a18b056"
 
     cache_host: str = "cachedb"
     cache_port: int = 6379

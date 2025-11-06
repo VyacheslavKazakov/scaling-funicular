@@ -11,7 +11,6 @@ from redis.backoff import ExponentialBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
 from redis.asyncio.retry import Retry
 from starlette.middleware.cors import CORSMiddleware
-from starlette.middleware.sessions import SessionMiddleware
 import src.constants as const
 from src.api.schemas import BaseExceptionBody
 from src.api.v1.answers.routers import router as answers_router
@@ -75,8 +74,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-app.add_middleware(SessionMiddleware, secret_key=settings.secret_key)
 
 
 @app.middleware("http")

@@ -16,7 +16,7 @@ LOGGING = {
         },
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
-            "fmt": "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+            "fmt": "%(asctime)s - %(name)s - %(levelname)s - %(message)s "
             "%(status_code)s",
         },
     },

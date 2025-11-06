@@ -1,6 +1,5 @@
 import ast
 import logging
-
 from langchain_core.tools import tool
 from pydantic import Field, BaseModel
 
@@ -51,13 +50,14 @@ def safe_execute_code_tool(
 
     try:
         code = compile(tree, "<string>", "exec")
-        exec(code, SAFE_NAMESPACE, SAFE_NAMESPACE)
+        local_namespace = SAFE_NAMESPACE.copy()
+        exec(code, SAFE_NAMESPACE, local_namespace)
 
-        if function_name not in SAFE_NAMESPACE:
+        if function_name not in local_namespace:
             logger.error(f"Error: function '{function_name}' not found")
             return None
 
-        func = SAFE_NAMESPACE[function_name]
+        func = local_namespace[function_name]
         result = func(*args)
         return result
     except Exception as e:

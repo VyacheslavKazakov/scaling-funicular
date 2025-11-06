@@ -15,10 +15,8 @@ class RedisCacheStorage:
     def __init__(self, client: Redis) -> None:
         self.client = client
 
-    async def get_object(
-        self, source: str, obj_id: str | int | None = None, **kwargs
-    ) -> str | None:
-        return await self.client.get(source)
+    async def get_object(self, obj_id: str | int | None = None) -> str | None:
+        return await self.client.get(obj_id)
 
     async def set_object(self, source: str, **kwargs) -> None:
         await self.client.set(name=source, **kwargs)
@@ -68,7 +66,3 @@ def cache_deco(
 
 
 cache: RedisCacheStorage | None = None
-
-
-def get_cache() -> RedisCacheStorage | None:
-    return cache
