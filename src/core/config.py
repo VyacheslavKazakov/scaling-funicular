@@ -18,6 +18,8 @@ class Settings(BaseSettings):
         "0.0.0.0",
     )
 
+    rate_limit: str = "100/minute"
+
     cache_host: str = "cachedb"
     cache_port: int = 6379
     cache_db: int = 1
@@ -28,6 +30,9 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="dummy", alias="KEY")
     default_temperature: float = 0.0
     default_max_tokens: int = 4096
+
+    safe_execute_code_timeout_sec: int = 10
+    question_max_length: int = 2048
 
     workers: int = 1
     debug: bool = False

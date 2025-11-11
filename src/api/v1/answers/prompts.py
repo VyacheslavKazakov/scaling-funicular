@@ -102,8 +102,8 @@ You can use the following built-in Python functions without importing:
 - Mathematical: `abs`, `sum`, `min`, `max`, `pow`, `round`, `divmod`
 - Sequences: `len`, `range`, `enumerate`, `zip`, `map`, `filter`, `sorted`, `reversed`
 - Logic: `all`, `any`
-- Type checking: `isinstance`, `issubclass`, `hasattr`, `getattr`, `setattr`, `callable`
-- Types: `int`, `float`, `complex`, `str`, `list`, `tuple`, `dict`, `set`, `frozenset`, `bool`, `bytes`, `bytearray`
+- Type checking: `isinstance`
+- Types: `int`, `float`, `complex`, `str`, `list`, `tuple`, `dict`, `set`, `frozenset`, `bool``
 
 ## Available Modules:
 
