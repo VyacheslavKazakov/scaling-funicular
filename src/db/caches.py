@@ -16,7 +16,9 @@ class RedisCacheStorage:
         self.client = client
 
     async def get_object(self, obj_id: str | int | None = None) -> str | None:
-        return await self.client.get(obj_id)
+        if obj_id is None:
+            return None
+        return await self.client.get(str(obj_id))
 
     async def set_object(self, source: str, **kwargs) -> None:
         await self.client.set(name=source, **kwargs)
