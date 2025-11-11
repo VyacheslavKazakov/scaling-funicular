@@ -2,9 +2,12 @@ import logging
 from typing import Annotated
 
 from fastapi import APIRouter, status, Depends, Query
+from starlette.requests import Request
 
+from src.core.limiters import limiter
 from src.api.v1.answers.schemas import AnswerGetSchema
 from src.api.v1.answers.services import AnswerService, get_answer_service
+from src.core.config import settings
 
 router = APIRouter(tags=["Answers"])
 logger = logging.getLogger(__name__)
@@ -16,12 +19,14 @@ logger = logging.getLogger(__name__)
     status_code=status.HTTP_200_OK,
     description="Get answers.",
 )
+@limiter.limit(settings.rate_limit)
 async def get_answer(
+    request: Request,
     question: Annotated[
         str,
         Query(
             min_length=1,
-            max_length=2048,
+            max_length=settings.question_max_length,
             description="Mathematical question or problem to solve",
             examples=[
                 "Calculate the area of a circle with radius 5",

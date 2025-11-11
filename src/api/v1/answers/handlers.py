@@ -8,6 +8,7 @@ from src.api.v1.answers.prompts import MATH_PROBLEM_PROMPT
 from src.api.v1.answers.schemas import LLMAnswerSchema
 from src.api.v1.answers.tools import safe_execute_code_tool
 from src.core.config import settings
+from functools import lru_cache
 
 
 class LLMAnswerHandler:
@@ -40,5 +41,6 @@ class LLMAnswerHandler:
         return answer.get("structured_response", LLMAnswerSchema()).answer
 
 
+@lru_cache(maxsize=1)
 def get_llm_answer_handler() -> LLMAnswerHandler:
     return LLMAnswerHandler()

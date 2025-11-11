@@ -1,4 +1,5 @@
 import logging
+import uuid
 from contextlib import asynccontextmanager
 from logging import config as logging_config
 from typing import AsyncIterator, Callable, Any
@@ -17,8 +18,13 @@ from src.api.v1.answers.routers import router as answers_router
 from src.api.v1.healthcheck.routers import router as healthcheck_router
 
 from src.core.config import settings
+from src.core.limiters import limiter
 from src.core.logger import LOGGING
 from src.db import caches
+
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+
 
 logging_config.dictConfig(LOGGING)
 logger = logging.getLogger(__name__)
@@ -75,10 +81,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
 
 @app.middleware("http")
 async def request_id_middleware(request: Request, call_next: Callable[..., Any]) -> Any:
-    request_id = request.headers.get("X-Request-Id", "")
+    request_id = request.headers.get("X-Request-Id", uuid.uuid4().hex)
     const.REQUEST_ID_IN_CONTEXT.set(request_id)
     return await call_next(request)
 

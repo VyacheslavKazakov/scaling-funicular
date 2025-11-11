@@ -218,6 +218,75 @@ uv run mypy .
 uv run pre-commit install
 ```
 
+### Testing
+
+The project includes comprehensive tests for security validation and code execution.
+
+**Run all tests:**
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with verbose output
+uv run pytest -v
+
+# Run specific test file
+uv run pytest tests/test_security_validator.py
+
+# Run specific test class
+uv run pytest tests/test_safe_execute_code.py::TestSafeExecuteCodeTool
+
+# Run specific test
+uv run pytest tests/test_safe_execute_code.py::TestSafeExecuteCodeTool::test_simple_math_execution
+```
+
+**Run tests with coverage:**
+
+```bash
+# Run with coverage report in terminal
+uv run pytest --cov=src --cov-report=term-missing
+
+# Generate HTML coverage report
+uv run pytest --cov=src --cov-report=html
+
+# Then open htmlcov/index.html in your browser
+open htmlcov/index.html  # macOS
+xdg-open htmlcov/index.html  # Linux
+
+# Coverage for specific module
+uv run pytest --cov=src/api/v1/answers --cov-report=term-missing
+
+# Detailed coverage with verbose test output
+uv run pytest --cov=src --cov-report=term-missing -v
+```
+
+**Example coverage output:**
+
+```
+---------- coverage: platform darwin, python 3.13.7 -----------
+Name                                   Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------
+src/api/v1/answers/handlers.py           15      0   100%
+src/api/v1/answers/routers.py            12      0   100%
+src/api/v1/answers/services.py           10      0   100%
+src/api/v1/answers/tools.py              25      2    92%   45-46
+src/api/v1/answers/helpers.py            48      2    96%   67-68
+--------------------------------------------------------------------
+TOTAL                                    200     15    93%
+```
+
+**Test Structure:**
+
+```
+tests/
+├── test_security_validator.py      # AST security validation tests (12 tests)
+├── test_safe_execute_code.py       # Code execution sandbox tests (21 tests)
+├── test_llm_handler.py              # LLM handler with mocks (7 tests)
+├── test_routers.py                  # API endpoint tests (13 tests)
+└── test_services.py                 # Service layer tests (10 tests)
+```
+
 ### Project Structure
 
 ```
@@ -231,20 +300,26 @@ scaling-funicular/
 │   │   │   │   ├── services.py     # Business logic
 │   │   │   │   ├── handlers.py     # LLM integration
 │   │   │   │   ├── tools.py        # Code execution sandbox
-│   │   │   │   ├── helpers.py      # Security configs
+│   │   │   │   ├── helpers.py      # Security configs & AST validator
 │   │   │   │   ├── prompts.py      # LLM system prompts
 │   │   │   │   └── schemas.py      # Request/response models
 │   │   │   └── healthcheck/        # Health check endpoints
 │   │   └── schemas.py              # Base API schemas
 │   ├── core/
 │   │   ├── config.py               # Configuration management
-│   │   └── logger.py               # Logging configuration
+│   │   ├── logger.py               # Logging configuration
+│   │   └── limiters.py             # Rate limiting
 │   ├── db/
 │   │   └── caches.py               # Redis cache implementation
 │   └── constants.py                # Application constants
+├── tests/
+│   ├── test_security_validator.py  # AST security tests
+│   ├── test_safe_execute_code.py   # Sandbox execution tests
+│   └── test_llm_handler.py         # LLM handler tests
 ├── Dockerfile                       # Container definition
 ├── docker-compose.yml              # Multi-container orchestration
 ├── pyproject.toml                  # Project dependencies
+├── pytest.ini                      # Pytest configuration
 └── README.md                       # This file
 ```
 

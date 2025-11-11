@@ -1,7 +1,7 @@
 import hashlib
 import logging
 from functools import wraps
-from typing import Optional, Any
+from typing import Any, Callable
 
 import orjson
 from redis.asyncio import Redis
@@ -16,13 +16,19 @@ class RedisCacheStorage:
         self.client = client
 
     async def get_object(self, obj_id: str | int | None = None) -> str | None:
-        return await self.client.get(obj_id)
+        if obj_id is None:
+            return None
+        return await self.client.get(str(obj_id))
 
     async def set_object(self, source: str, **kwargs) -> None:
         await self.client.set(name=source, **kwargs)
 
     async def close(self) -> None:
         await self.client.close()
+
+
+def get_cache() -> RedisCacheStorage | None:
+    return cache
 
 
 def get_cache_key(namespace: str, *args, **kwargs) -> str:
@@ -40,20 +46,24 @@ def get_cache_key(namespace: str, *args, **kwargs) -> str:
 
 
 def cache_deco(
-    namespace: Optional[str] = "",
+    namespace: str | None = "",
     expire_in_seconds: int = settings.cache_ttl_in_seconds,
-) -> Any:
+    cache_getter: Callable[[], RedisCacheStorage | None] = get_cache,
+) -> Callable[[Any], Any]:
     def func_wrapper(func):
         @wraps(func)
         async def wrapper(cls, *args, **kwargs):
             cache_key = get_cache_key(namespace, *args, **kwargs)
-            data = await cache.get_object(cache_key) if cache else None
+            cache_instance = cache_getter()
+            data = (
+                await cache_instance.get_object(cache_key) if cache_instance else None
+            )
             if data:
                 data = orjson.loads(data)
             else:
                 data = await func(cls, *args, **kwargs)
-                if cache:
-                    await cache.set_object(
+                if cache_instance:
+                    await cache_instance.set_object(
                         source=cache_key,
                         value=orjson.dumps(data),
                         ex=expire_in_seconds,

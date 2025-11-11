@@ -106,16 +106,16 @@ print_success "uv.lock exists"
 if [ ! -f ".env" ]; then
     print_error ".env file not found"
     echo ""
-    if [ -f ".env_example" ]; then
-        echo "Creating .env from .env_example..."
-        cp .env_example .env
+    if [ -f ".env.example" ]; then
+        echo "Creating .env from .env.example..."
+        cp .env.example .env
         print_warning ".env file created from template"
         print_warning "IMPORTANT: Edit .env file and set your OpenAI API key!"
         echo ""
         read -p "Press Enter after you've configured .env, or Ctrl+C to exit..."
     else
         echo "Please create .env file with required variables:"
-        echo "  MODEL=gpt-4o-mini"
+        echo "  MODEL=gpt-5-mini"
         echo "  KEY=your-openai-api-key"
         exit 1
     fi
