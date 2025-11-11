@@ -68,7 +68,7 @@ Create a `.env` file in the project root:
 
 ```bash
 # .env file
-MODEL=gpt-4o-mini
+MODEL=gpt-5-mini
 KEY=your-openai-api-key-here
 ENV=dev
 LOG_LEVEL=INFO

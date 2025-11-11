@@ -32,7 +32,7 @@ def get_cache_key(namespace: str, *args, **kwargs) -> str:
     if kwargs:
         prepare_mark.extend([f"{k}:{v}" for k, v in kwargs.items()])
     mark_str_encoded = ":".join(prepare_mark).encode("utf-8")
-    mark = hashlib.md5(mark_str_encoded).hexdigest()[:50]
+    mark = hashlib.md5(mark_str_encoded).hexdigest()
     logger.debug(
         f"Cache key: namespace: {namespace}, params: {args}, {kwargs}, prepare: {prepare_mark}, hash: {mark}"
     )
