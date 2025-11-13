@@ -72,9 +72,9 @@ class TestCodeSecurityValidator:
 
     def test_excessive_lambda_nesting_blocked(self):
         """Test that excessive lambda nesting is blocked"""
-        code = """
-f = lambda x: (lambda y: (lambda z: z + 1)(y))(x)
-"""
+        code = textwrap.dedent("""
+        f = lambda x: (lambda y: (lambda z: z + 1)(y))(x)
+        """)
         with pytest.raises(
             SecurityViolation, match="Lambda nesting depth exceeds maximum"
         ):

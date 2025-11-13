@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: "math_api"
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["app:8008"]
+
+  - job_name: "prometheus"
+    static_configs:
+      - targets: [ "localhost:9090" ]
+
+#  - job_name: "redis"
+#    static_configs:
+#      - targets: [ "cachedb:6379" ]
+    # You need redis_exporter
+
+  - job_name: "loki"
+    static_configs:
+      - targets: [ "loki:3100" ]

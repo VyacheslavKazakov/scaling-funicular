@@ -7,6 +7,7 @@ from typing import AsyncIterator, Callable, Any
 import uvicorn
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import ORJSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
 from redis.backoff import ExponentialBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
@@ -16,6 +17,7 @@ import src.constants as const
 from src.api.schemas import BaseExceptionBody
 from src.api.v1.answers.routers import router as answers_router
 from src.api.v1.healthcheck.routers import router as healthcheck_router
+from src.core import instrumentators
 
 from src.core.config import settings
 from src.core.limiters import limiter
@@ -83,6 +85,17 @@ app.add_middleware(
 
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+instrumentators.prometheus_instrumentator = Instrumentator(
+    should_respect_env_var=True,
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=[],
+    env_var_name=settings.enable_metrics_variable_name,
+    inprogress_labels=True,
+).instrument(
+    app,
+)
+instrumentators.prometheus_instrumentator.expose(app)
 
 
 @app.middleware("http")
