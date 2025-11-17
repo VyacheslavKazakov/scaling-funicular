@@ -1,7 +1,19 @@
+import logging
+
 from src.core.config import settings
+from src.constants import REQUEST_ID_IN_CONTEXT
+
+
+class RequestIDFilter(logging.Filter):
+    """Add request_id from context to log records."""
+
+    def filter(self, record):
+        record.request_id = REQUEST_ID_IN_CONTEXT.get()
+        return True
+
 
 LOG_LEVEL = settings.log_level
-LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+LOG_FORMAT = "%(asctime)s - [%(request_id)s] - %(name)s - %(levelname)s - %(message)s"
 LOG_DEFAULT_HANDLERS = ["console"]
 
 LOGGING = {
@@ -16,8 +28,13 @@ LOGGING = {
         },
         "access": {
             "()": "uvicorn.logging.AccessFormatter",
-            "fmt": "%(asctime)s - %(name)s - %(levelname)s - %(message)s "
+            "fmt": "%(asctime)s - [%(request_id)s] - %(name)s - %(levelname)s - %(message)s "
             "%(status_code)s",
+        },
+    },
+    "filters": {
+        "request_id": {
+            "()": RequestIDFilter,
         },
     },
     "handlers": {
@@ -25,16 +42,19 @@ LOGGING = {
             "level": "DEBUG",
             "class": "logging.StreamHandler",
             "formatter": "verbose",
+            "filters": ["request_id"],
         },
         "default": {
             "formatter": "default",
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stdout",
+            "filters": ["request_id"],
         },
         "access": {
             "formatter": "access",
             "class": "logging.StreamHandler",
             "stream": "ext://sys.stdout",
+            "filters": ["request_id"],
         },
     },
     "loggers": {

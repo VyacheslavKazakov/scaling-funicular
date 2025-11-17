@@ -29,6 +29,12 @@ discovery.relabel "logs_integrations_docker" {
       }
 
       rule {
+          source_labels = ["__meta_docker_container_name"]
+          regex = "/.*-(.+)-\\d+"
+          target_label = "compose_service"
+      }
+
+      rule {
           target_label = "instance"
           replacement  = constants.hostname
       }
