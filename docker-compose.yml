@@ -26,7 +26,86 @@ services:
       cachedb:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "sh", "-c", 'curl http://127.0.0.1:8008/api/v1/healthcheck/ -w "%{http_code}" -L -o /dev/null -s | grep "^200$" || exit 1' ]
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --output-document=- http://127.0.0.1:8008/api/v1/healthcheck/ | grep -q -w ok || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./etc/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_store:/prometheus
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --output-document=- http://localhost:9090/-/ready | grep -q -w Ready || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./etc/loki-config.yaml:/etc/loki/local-config.yaml
+      - loki_store:/loki
+    healthcheck:
+      test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --output-document=- http://localhost:3100/ready | grep -q -w ready || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  alloy:
+    image: grafana/alloy:latest
+    restart: unless-stopped
+    privileged: true
+    ports:
+      - "12345:12345"
+    command:
+      - run
+      - --server.http.listen-addr=0.0.0.0:12345
+      - --storage.path=/var/lib/alloy/data
+      - /etc/alloy/config.alloy
+    environment:
+      ALLOY_DEPLOY_MODE: docker
+    depends_on:
+      loki:
+        condition: service_healthy
+    volumes:
+      - ./etc/alloy-config.alloy:/etc/alloy/config.alloy
+      - /var/run/docker.sock:/var/run/docker.sock
+    healthcheck:
+      test: [ "CMD", "sh", "-c", "pgrep -f alloy || exit 1" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    depends_on:
+      loki:
+        condition: service_healthy
+      prometheus:
+        condition: service_healthy
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./etc/grafana/:/etc/grafana/provisioning
+      - grafana_store:/var/lib/grafana
+    healthcheck:
+      test: ["CMD", "sh", "-c", 'curl -f http://localhost:3000/api/health -w "%{http_code}" -L -o /dev/null -s | grep "^200$" || exit 1' ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -34,3 +113,6 @@ services:
 
 volumes:
   cachedb_store:
+  prometheus_store:
+  grafana_store:
+  loki_store:

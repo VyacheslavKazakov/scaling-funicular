@@ -7,5 +7,7 @@ APP_PREFIX = "Math API"
 APP_NAME = "MathAPI"
 APP_DESCRIPTION = "Solve math problems with AI support"
 APP_API_DOCS_TITLE = f"{APP_NAME} ({ENV.upper()})" if ENV != "dev" else APP_NAME
+APP_NAMESPACE = "pets"
+APP_SUBSYSTEM = "math_api"
 
 REQUEST_ID_IN_CONTEXT: ContextVar[str] = ContextVar("request_id", default="")

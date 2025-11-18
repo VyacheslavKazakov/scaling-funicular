@@ -7,6 +7,8 @@ from typing import AsyncIterator, Callable, Any
 import uvicorn
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import ORJSONResponse
+from prometheus_client import Info
+from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
 from redis.backoff import ExponentialBackoff
 from redis.exceptions import BusyLoadingError, ConnectionError, TimeoutError
@@ -16,8 +18,10 @@ import src.constants as const
 from src.api.schemas import BaseExceptionBody
 from src.api.v1.answers.routers import router as answers_router
 from src.api.v1.healthcheck.routers import router as healthcheck_router
+from src.core import instrumentators
 
 from src.core.config import settings
+from src.core.exception_handlers import global_exception_handler
 from src.core.limiters import limiter
 from src.core.logger import LOGGING
 from src.db import caches
@@ -55,6 +59,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
     )
 
+    app_info = Info("fastapi_app", const.APP_PREFIX)
+    app_info.info(
+        {"name": const.APP_NAME, "version": const.APP_VERSION, "env": const.ENV}
+    )
+
     yield
 
     await caches.cache.close()
@@ -82,7 +91,8 @@ app.add_middleware(
 )
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(Exception, global_exception_handler)
 
 
 @app.middleware("http")
@@ -90,6 +100,17 @@ async def request_id_middleware(request: Request, call_next: Callable[..., Any])
     request_id = request.headers.get("X-Request-Id", uuid.uuid4().hex)
     const.REQUEST_ID_IN_CONTEXT.set(request_id)
     return await call_next(request)
+
+
+instrumentators.prometheus_instrumentator = Instrumentator(
+    should_respect_env_var=True,
+    should_instrument_requests_inprogress=True,
+    excluded_handlers=["/metrics"],
+    env_var_name=settings.enable_metrics_variable_name,
+    inprogress_labels=True,
+)
+instrumentators.prometheus_instrumentator.instrument(app)
+instrumentators.prometheus_instrumentator.expose(app)
 
 
 if __name__ == "__main__":

@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     safe_execute_code_timeout_sec: int = 10
     question_max_length: int = 2048
 
+    enable_metrics_variable_name: str = "ENABLE_METRICS"
+
     workers: int = 1
     debug: bool = False
     log_level: str = "INFO"

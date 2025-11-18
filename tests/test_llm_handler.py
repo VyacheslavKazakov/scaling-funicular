@@ -119,6 +119,7 @@ class TestLLMAnswerHandler:
             mock_chat_openai.assert_called_once_with(
                 model="test-model",
                 api_key="test-api-key",
+                max_tokens=mock_settings.default_max_tokens,
                 temperature=0.5,
             )
 
