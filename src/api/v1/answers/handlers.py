@@ -1,12 +1,7 @@
-from typing import Callable
-
-from langchain_core.tools import BaseTool
 from langchain_openai import ChatOpenAI
-from langchain.agents import create_agent
 
 from src.api.v1.answers.prompts import MATH_PROBLEM_PROMPT
 from src.api.v1.answers.schemas import LLMAnswerSchema
-from src.api.v1.answers.tools import safe_execute_code_tool
 from src.core.config import settings
 from functools import lru_cache
 
@@ -19,26 +14,18 @@ class LLMAnswerHandler:
             max_tokens=settings.default_max_tokens,
             temperature=settings.default_temperature,
         )
-        self._tools: list[
-            Callable[[str | int | float], str | int | float] | BaseTool
-        ] = [safe_execute_code_tool]
-        self._agent = create_agent(
-            model=self._llm,
-            tools=self._tools,
-            response_format=LLMAnswerSchema,
-            debug=settings.debug,
+        self._llm_with_structured_output = self._llm.with_structured_output(
+            schema=LLMAnswerSchema
         )
 
     async def handle(self, question: str):
-        answer = await self._agent.ainvoke(
-            {
-                "messages": [
-                    {"content": MATH_PROBLEM_PROMPT, "role": "system"},
-                    {"content": question, "role": "user"},
-                ]
-            }
+        answer = await self._llm_with_structured_output.ainvoke(
+            [
+                {"content": MATH_PROBLEM_PROMPT, "role": "system"},
+                {"content": question, "role": "user"},
+            ]
         )
-        return answer.get("structured_response", LLMAnswerSchema()).answer
+        return answer.answer
 
 
 @lru_cache(maxsize=1)

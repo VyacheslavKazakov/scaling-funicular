@@ -230,15 +230,6 @@ uv run pytest
 
 # Run with verbose output
 uv run pytest -v
-
-# Run specific test file
-uv run pytest tests/test_security_validator.py
-
-# Run specific test class
-uv run pytest tests/test_safe_execute_code.py::TestSafeExecuteCodeTool
-
-# Run specific test
-uv run pytest tests/test_safe_execute_code.py::TestSafeExecuteCodeTool::test_simple_math_execution
 ```
 
 **Run tests with coverage:**
@@ -299,8 +290,6 @@ scaling-funicular/
 │   │   │   │   ├── routers.py      # FastAPI routes
 │   │   │   │   ├── services.py     # Business logic
 │   │   │   │   ├── handlers.py     # LLM integration
-│   │   │   │   ├── tools.py        # Code execution sandbox
-│   │   │   │   ├── helpers.py      # Security configs & AST validator
 │   │   │   │   ├── prompts.py      # LLM system prompts
 │   │   │   │   └── schemas.py      # Request/response models
 │   │   │   └── healthcheck/        # Health check endpoints
@@ -312,11 +301,8 @@ scaling-funicular/
 │   ├── db/
 │   │   └── caches.py               # Redis cache implementation
 │   └── constants.py                # Application constants
-├── tests/
-│   ├── test_security_validator.py  # AST security tests
-│   ├── test_safe_execute_code.py   # Sandbox execution tests
-│   └── test_llm_handler.py         # LLM handler tests
-├── Dockerfile                       # Container definition
+├── tests/                          # Tests
+├── Dockerfile                      # Container definition
 ├── docker-compose.yml              # Multi-container orchestration
 ├── pyproject.toml                  # Project dependencies
 ├── pytest.ini                      # Pytest configuration
