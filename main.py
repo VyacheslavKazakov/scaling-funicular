@@ -5,6 +5,7 @@ from logging import config as logging_config
 from typing import AsyncIterator, Callable, Any
 
 import uvicorn
+import logfire
 from fastapi import APIRouter, FastAPI, Request
 from fastapi.responses import ORJSONResponse
 from prometheus_client import Info
@@ -93,6 +94,20 @@ app.add_middleware(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_exception_handler(Exception, global_exception_handler)
+
+if settings.enable_tracing:
+    logfire.configure(
+        send_to_logfire=False,
+        service_name=const.APP_SUBSYSTEM,
+        environment=const.ENV,
+        console=False,
+    )
+    logfire.instrument_openai()
+    logfire.instrument_fastapi(
+        app,
+        capture_headers=True,
+        excluded_urls="/metrics,/api/v1/healthcheck/",
+    )
 
 
 @app.middleware("http")

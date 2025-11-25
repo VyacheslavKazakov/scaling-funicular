@@ -8,6 +8,10 @@ datasources:
     url: http://prometheus:9090
     isDefault: true
     editable: true
+    jsonData:
+      exemplarTraceIdDestinations:
+        - datasourceUid: 'tempo-ds'
+          name: TraceID
 
   - name: Loki
     type: loki
@@ -15,3 +19,34 @@ datasources:
     uid: loki-ds
     url: http://loki:3100
     editable: true
+    jsonData:
+      derivedFields:
+        - datasourceUid: 'tempo-ds'
+          matcherRegex: "trace_id=([0-9a-f]+)"
+          name: TraceID
+          url: '$${__value.raw}'
+          urlDisplayLabel: 'View Trace'
+
+  - name: Tempo
+    type: tempo
+    access: proxy
+    uid: tempo-ds
+    url: http://tempo:3200
+    jsonData:
+      httpMethod: GET
+      tracesToLogsV2:
+        datasourceUid: 'loki-ds'
+        customQuery: true
+        query: '{container_name=~".*app.*", trace_id="$${__span.traceId}"}'
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+      tracesToMetrics:
+        datasourceUid: 'prometheus-ds'
+      serviceMap:
+        datasourceUid: 'prometheus-ds'
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
+      lokiSearch:
+        datasourceUid: 'loki-ds'

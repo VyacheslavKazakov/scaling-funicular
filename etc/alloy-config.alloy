@@ -47,11 +47,77 @@ loki.source.docker "default" {
   host       = "unix:///var/run/docker.sock"
   targets    = discovery.docker.linux.targets
   relabel_rules = discovery.relabel.logs_integrations_docker.rules
-  forward_to = [loki.write.local.receiver]
+  forward_to = [loki.process.extract_trace_id.receiver]
 }
+
+// Extract trace_id from logs and add as label
+loki.process "extract_trace_id" {
+    forward_to = [loki.write.local.receiver]
+
+    stage.regex {
+      expression = "trace_id=(?P<trace_id>[0-9a-f]+)"
+    }
+
+    stage.labels {
+      values = {
+        trace_id = "trace_id",
+      }
+    }
+}
+
 
 loki.write "local" {
   endpoint {
     url = "http://loki:3100/loki/api/v1/push"
   }
+}
+
+
+// Alloy Configuration for OpenTelemetry Trace Collection
+otelcol.receiver.otlp "default" {
+  grpc {
+    endpoint = "0.0.0.0:4317"
+  }
+
+  http {
+    endpoint = "0.0.0.0:4318"
+  }
+
+  output {
+    traces = [
+      otelcol.processor.batch.default.input,
+      otelcol.connector.spanlogs.default.input,
+    ]
+  }
+}
+
+otelcol.processor.batch "default" {
+  timeout = "1s"
+  send_batch_size = 1024
+
+  output {
+    traces = [otelcol.exporter.otlp.tempo.input]
+  }
+}
+
+otelcol.exporter.otlp "tempo" {
+  client {
+    endpoint = "tempo:4317"
+    tls {
+      insecure = true
+    }
+  }
+}
+
+otelcol.connector.spanlogs "default" {
+  roots = true
+  span_attributes = ["http.method", "http.target", "http.status_code"]
+
+  output {
+    logs = [otelcol.exporter.loki.default.input]
+  }
+}
+
+otelcol.exporter.loki "default" {
+  forward_to = [loki.write.local.receiver]
 }

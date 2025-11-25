@@ -33,7 +33,10 @@ This service provides a REST API that solves mathematical problems using Large L
 | **Prometheus** | Metrics collection | Industry-standard monitoring system for collecting and storing time-series metrics |
 | **Grafana** | Visualization & dashboards | Powerful analytics and monitoring platform with pre-built dashboards |
 | **Loki** | Log aggregation | Efficient log storage and querying system designed for cloud-native environments |
-| **Grafana Alloy** | Observability agent | Collects logs from Docker containers and forwards them to Loki |
+| **Tempo** | Distributed tracing | High-scale distributed tracing backend for storing and querying traces |
+| **Grafana Alloy** | Observability agent | Collects logs and traces from containers, forwards to Loki and Tempo |
+| **OpenTelemetry** | Tracing instrumentation | Open standard for distributed tracing, metrics, and logs |
+| **Logfire** | OpenTelemetry SDK | Python SDK for instrumenting FastAPI and OpenAI with OpenTelemetry |
 
 ### Security Features
 
@@ -63,11 +66,33 @@ The service includes a complete observability stack for monitoring, logging, and
 - **Centralized Logging**: All container logs aggregated in one place
 - **Structured Logs**: JSON-formatted logs with contextual information
   - Request ID tracking across operations
+  - Trace ID for correlation with distributed traces
   - Exception details with stack traces
   - Path, method, and status code for each request
 - **Log Collection**: Grafana Alloy automatically collects logs from all Docker containers
-- **Retention**: 7 days (configurable in `etc/loki-config.yaml`)
+- **Retention**: 7 days (configurable in `etc/loki-config.yml`)
 - **Access**: Loki API at http://localhost:3100
+
+#### Distributed Tracing (Tempo + OpenTelemetry)
+
+- **End-to-End Request Tracing**: Track requests across all services and LLM calls
+- **OpenTelemetry Instrumentation**: Automatic tracing of:
+  - FastAPI endpoints (request/response lifecycle)
+  - OpenAI API calls (LLM inference latency)
+  - HTTP client requests
+  - Database queries and cache operations
+- **Trace-to-Logs Integration**: Jump directly from trace spans to related logs
+  - Traces and logs correlated via `trace_id`
+  - Click "Logs for this span" in any trace to see related logs
+  - Bidirectional navigation: logs → traces and traces → logs
+- **Performance Analysis**:
+  - Identify slow LLM calls and bottlenecks
+  - Visualize request flow through the system
+  - Analyze latency breakdown by component
+- **Trace Collection**: Grafana Alloy receives OpenTelemetry traces via OTLP protocol
+- **Retention**: 48 hours (configurable in `etc/tempo-config.yml`)
+- **Access**: Tempo API at http://localhost:3200
+- **Toggle**: Enable/disable tracing with `ENABLE_TRACING` environment variable
 
 #### Visualization (Grafana)
 
@@ -81,17 +106,39 @@ The service includes a complete observability stack for monitoring, logging, and
 #### Stack Components
 
 ```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│   FastAPI   │────▶│ Prometheus  │────▶│   Grafana   │
-│     App     │     │   :9090     │     │    :3000    │
-└─────────────┘     └─────────────┘     └─────────────┘
-       │                                       ▲
-       │ logs                                  │
-       ▼                                       │
-┌─────────────┐     ┌─────────────┐     ┌──────┴──────┐
-│   Docker    │────▶│    Alloy    │────▶│     Loki    │
-│ Containers  │     │   :12345    │     │    :3100    │
-└─────────────┘     └─────────────┘     └─────────────┘
+                    ┌─────────────┐
+                    │   Grafana   │
+                    │    :3000    │
+                    │  (Explore)  │
+                    └──────┬──────┘
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ Prometheus  │  │    Loki     │  │    Tempo    │
+│   :9090     │  │   :3100     │  │   :3200     │
+│  (metrics)  │  │   (logs)    │  │  (traces)   │
+└──────▲──────┘  └──────▲──────┘  └──────▲──────┘
+       │                │                │
+       │                └────────┬───────┘
+       │                         │
+       │                  ┌──────┴──────┐
+       │                  │    Alloy    │
+       │                  │   :12345    │
+       │                  │ (collector) │
+       │                  └──────▲──────┘
+       │                         │
+       │                         │ OTLP traces
+       │                         │ Docker logs
+       │                         │
+       └─────────────┬───────────┘
+                     │
+              ┌──────┴──────┐
+              │   FastAPI   │
+              │     App     │
+              │    :8008    │
+              └─────────────┘
 ```
 
 #### What's Being Monitored
@@ -152,6 +199,9 @@ LOG_LEVEL=INFO
 DEBUG=false
 WORKERS=1
 
+# Observability
+ENABLE_TRACING=true
+
 # Redis configuration (defaults work with docker-compose)
 CACHE_HOST=cachedb
 CACHE_PORT=6379
@@ -176,10 +226,11 @@ Once all services are running, the following endpoints will be available:
 | **Math API** | http://localhost:8008 | Main application API |
 | **API Docs** | http://localhost:8008/api/v1/docs | Interactive Swagger documentation |
 | **Metrics** | http://localhost:8008/metrics | Prometheus metrics endpoint |
-| **Grafana** | http://localhost:3000 | Dashboards and visualization (admin/admin) |
+| **Grafana** | http://localhost:3000 | Dashboards, traces, and logs (admin/admin) |
 | **Prometheus** | http://localhost:9090 | Metrics database and query interface |
 | **Loki** | http://localhost:3100 | Log aggregation API |
-| **Alloy** | http://localhost:12345 | Log collection agent status |
+| **Tempo** | http://localhost:3200 | Distributed tracing backend |
+| **Alloy** | http://localhost:12345 | Log and trace collection agent status |
 
 ### 4. Running Locally (Development)
 
@@ -277,6 +328,7 @@ All configuration is managed through environment variables. See `src/core/config
 | `CACHE_PORT` | `6379`       | Redis port |
 | `CACHE_DB` | `1`          | Redis database number |
 | `CACHE_TTL_IN_SECONDS` | `60`         | Cache expiration time |
+| `ENABLE_TRACING` | `false`      | Enable OpenTelemetry distributed tracing |
 | `WORKERS` | `1`          | Number of uvicorn workers |
 | `DEBUG` | `false`      | Enable debug mode |
 | `LOG_LEVEL` | `INFO`       | Logging level |
