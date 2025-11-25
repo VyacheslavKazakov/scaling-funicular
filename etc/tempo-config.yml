@@ -12,6 +12,19 @@ distributor:
         http:
           endpoint: 0.0.0.0:4318
 
+metrics_generator:
+  registry:
+    external_labels:
+      source: tempo
+  storage:
+    path: /var/tempo/generator/wal
+  traces_storage:
+    path: /var/tempo/generator/traces
+  processor:
+    service_graphs:
+      histogram_buckets: [0.1, 0.2, 0.4, 0.8, 1.6, 3.2, 6.4, 12.8]
+      max_items: 10000
+
 storage:
   trace:
     backend: local
@@ -21,3 +34,8 @@ storage:
 compactor:
   compaction:
     block_retention: 48h
+
+overrides:
+  defaults:
+    metrics_generator:
+      processors: [service-graphs]
