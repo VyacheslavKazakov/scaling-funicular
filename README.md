@@ -30,6 +30,13 @@ This service provides a REST API that solves mathematical problems using Large L
 | **Docker** | Containerization | Ensures consistent deployment across environments, simplifies dependency management |
 | **uvicorn** | ASGI server | High-performance async server optimized for Python async applications |
 | **uv** | Package manager | Fast, modern Python package manager with deterministic dependency resolution |
+| **Prometheus** | Metrics collection | Industry-standard monitoring system for collecting and storing time-series metrics |
+| **Grafana** | Visualization & dashboards | Powerful analytics and monitoring platform with pre-built dashboards |
+| **Loki** | Log aggregation | Efficient log storage and querying system designed for cloud-native environments |
+| **Tempo** | Distributed tracing | High-scale distributed tracing backend for storing and querying traces |
+| **Grafana Alloy** | Observability agent | Collects logs and traces from containers, forwards to Loki and Tempo |
+| **OpenTelemetry** | Tracing instrumentation | Open standard for distributed tracing, metrics, and logs |
+| **Logfire** | OpenTelemetry SDK | Python SDK for instrumenting FastAPI and OpenAI with OpenTelemetry |
 
 ### Security Features
 
@@ -37,6 +44,123 @@ This service provides a REST API that solves mathematical problems using Large L
 - **Restricted Builtins**: Limited set of safe built-in functions, no file I/O or system access
 - **AST Validation**: Code is parsed and validated before execution
 - **No Dangerous Imports**: Blocks os, sys, subprocess, socket, requests, and other system modules
+
+### Observability & Monitoring
+
+The service includes a complete observability stack for monitoring, logging, and alerting:
+
+#### Metrics Collection (Prometheus)
+
+- **HTTP Request Metrics**: Automatic instrumentation of all FastAPI endpoints
+  - Request duration histograms
+  - Request count by method, path, and status code
+  - Active requests gauge
+- **Application Metrics**: Custom business metrics
+  - Exception counters by type (`fastapi_exceptions_total`)
+  - LLM interaction metrics
+- **System Metrics**: Prometheus self-monitoring
+- **Access**: http://localhost:9090
+
+#### Log Aggregation (Loki + Alloy)
+
+- **Centralized Logging**: All container logs aggregated in one place
+- **Structured Logs**: JSON-formatted logs with contextual information
+  - Request ID tracking across operations
+  - Trace ID for correlation with distributed traces
+  - Exception details with stack traces
+  - Path, method, and status code for each request
+- **Log Collection**: Grafana Alloy automatically collects logs from all Docker containers
+- **Retention**: 7 days (configurable in `etc/loki-config.yml`)
+- **Access**: Loki API at http://localhost:3100
+
+#### Distributed Tracing (Tempo + OpenTelemetry)
+
+- **End-to-End Request Tracing**: Track requests across all services and LLM calls
+- **OpenTelemetry Instrumentation**: Automatic tracing of:
+  - FastAPI endpoints (request/response lifecycle)
+  - OpenAI API calls (LLM inference latency)
+  - HTTP client requests
+  - Database queries and cache operations
+- **Trace-to-Logs Integration**: Jump directly from trace spans to related logs
+  - Traces and logs correlated via `trace_id`
+  - Click "Logs for this span" in any trace to see related logs
+  - Bidirectional navigation: logs → traces and traces → logs
+- **Performance Analysis**:
+  - Identify slow LLM calls and bottlenecks
+  - Visualize request flow through the system
+  - Analyze latency breakdown by component
+- **Trace Collection**: Grafana Alloy receives OpenTelemetry traces via OTLP protocol
+- **Retention**: 48 hours (configurable in `etc/tempo-config.yml`)
+- **Access**: Tempo API at http://localhost:3200
+- **Toggle**: Enable/disable tracing with `ENABLE_TRACING` environment variable
+
+#### Visualization (Grafana)
+
+- **Pre-built Dashboards**:
+  - **App Observability Dashboard**: HTTP metrics, request rates, latency percentiles, error rates
+  - **App Logs Dashboard**: Real-time log viewer with filtering and search capabilities
+- **Data Sources**: Pre-configured Prometheus and Loki connections
+- **Default Credentials**: admin / admin
+- **Access**: http://localhost:3000
+
+#### Stack Components
+
+```
+                    ┌─────────────┐
+                    │   Grafana   │
+                    │    :3000    │
+                    │  (Explore)  │
+                    └──────┬──────┘
+                           │
+          ┌────────────────┼────────────────┐
+          │                │                │
+          ▼                ▼                ▼
+┌─────────────┐  ┌─────────────┐  ┌─────────────┐
+│ Prometheus  │  │    Loki     │  │    Tempo    │
+│   :9090     │  │   :3100     │  │   :3200     │
+│  (metrics)  │  │   (logs)    │  │  (traces)   │
+└──────▲──────┘  └──────▲──────┘  └──────▲──────┘
+       │                │                │
+       │                └────────┬───────┘
+       │                         │
+       │                  ┌──────┴──────┐
+       │                  │    Alloy    │
+       │                  │   :12345    │
+       │                  │ (collector) │
+       │                  └──────▲──────┘
+       │                         │
+       │                         │ OTLP traces
+       │                         │ Docker logs
+       │                         │
+       └─────────────┬───────────┘
+                     │
+              ┌──────┴──────┐
+              │   FastAPI   │
+              │     App     │
+              │    :8008    │
+              └─────────────┘
+```
+
+#### What's Being Monitored
+
+1. **Request Performance**
+   - Response times (p50, p95, p99)
+   - Throughput (requests per second)
+   - Error rates by endpoint
+
+2. **Application Health**
+   - Unhandled exceptions with type classification
+   - Cache hit/miss rates (Redis)
+   - LLM API call latency and errors
+
+3. **System Resources**
+   - Container resource usage
+   - Redis connection pool status
+
+4. **Business Metrics**
+   - Math problems solved
+   - Cache effectiveness
+   - Popular question patterns
 
 ## Prerequisites
 
@@ -75,6 +199,9 @@ LOG_LEVEL=INFO
 DEBUG=false
 WORKERS=1
 
+# Observability
+ENABLE_TRACING=true
+
 # Redis configuration (defaults work with docker-compose)
 CACHE_HOST=cachedb
 CACHE_PORT=6379
@@ -92,7 +219,18 @@ docker-compose up --build
 docker-compose up -d --build
 ```
 
-The API will be available at `http://localhost:8008`
+Once all services are running, the following endpoints will be available:
+
+| Service | URL | Description |
+|---------|-----|-------------|
+| **Math API** | http://localhost:8008 | Main application API |
+| **API Docs** | http://localhost:8008/api/v1/docs | Interactive Swagger documentation |
+| **Metrics** | http://localhost:8008/metrics | Prometheus metrics endpoint |
+| **Grafana** | http://localhost:3000 | Dashboards, traces, and logs (admin/admin) |
+| **Prometheus** | http://localhost:9090 | Metrics database and query interface |
+| **Loki** | http://localhost:3100 | Log aggregation API |
+| **Tempo** | http://localhost:3200 | Distributed tracing backend |
+| **Alloy** | http://localhost:12345 | Log and trace collection agent status |
 
 ### 4. Running Locally (Development)
 
@@ -190,6 +328,7 @@ All configuration is managed through environment variables. See `src/core/config
 | `CACHE_PORT` | `6379`       | Redis port |
 | `CACHE_DB` | `1`          | Redis database number |
 | `CACHE_TTL_IN_SECONDS` | `60`         | Cache expiration time |
+| `ENABLE_TRACING` | `false`      | Enable OpenTelemetry distributed tracing |
 | `WORKERS` | `1`          | Number of uvicorn workers |
 | `DEBUG` | `false`      | Enable debug mode |
 | `LOG_LEVEL` | `INFO`       | Logging level |
@@ -307,16 +446,24 @@ scaling-funicular/
 │   │   └── schemas.py              # Base API schemas
 │   ├── core/
 │   │   ├── config.py               # Configuration management
-│   │   ├── logger.py               # Logging configuration
+│   │   ├── logger.py               # Structured logging setup
+│   │   ├── instrumentators.py      # Prometheus instrumentator
+│   │   ├── exception_handlers.py   # Global exception handler with metrics
 │   │   └── limiters.py             # Rate limiting
 │   ├── db/
 │   │   └── caches.py               # Redis cache implementation
 │   └── constants.py                # Application constants
-├── tests/
-│   ├── test_security_validator.py  # AST security tests
-│   ├── test_safe_execute_code.py   # Sandbox execution tests
-│   └── test_llm_handler.py         # LLM handler tests
-├── Dockerfile                       # Container definition
+├── etc/
+│   ├── prometheus.yml              # Prometheus scrape configuration
+│   ├── loki-config.yaml            # Loki storage and retention config
+│   ├── alloy-config.alloy          # Log collection agent configuration
+│   └── grafana/
+│       ├── datasources/            # Pre-configured data sources
+│       └── dashboards/             # Pre-built observability dashboards
+│           ├── app-observability.json  # Metrics dashboard
+│           └── app-logs.json           # Logs dashboard
+├── tests/                          # Unit tests
+├── Dockerfile                      # Container definition
 ├── docker-compose.yml              # Multi-container orchestration
 ├── pyproject.toml                  # Project dependencies
 ├── pytest.ini                      # Pytest configuration
@@ -357,12 +504,48 @@ Plus a restricted set of built-in functions (len, sum, min, max, range, etc.)
 
 ### Viewing Logs
 
+**Direct Container Logs:**
 ```bash
-# Docker logs
-docker-compose logs -f app
+# View all container logs
+docker-compose logs -f
 
-# Local logs
-# Logs are output to stdout/stderr
+# View specific service logs
+docker-compose logs -f app           # Application logs
+docker-compose logs -f prometheus    # Prometheus logs
+docker-compose logs -f grafana       # Grafana logs
+docker-compose logs -f loki          # Loki logs
+
+# View logs from last 100 lines
+docker-compose logs --tail=100 -f app
+```
+
+**Grafana Log Viewer (Recommended):**
+- Open http://localhost:3000 (login: admin/admin)
+- Navigate to "App Logs" dashboard
+- Features:
+  - Search and filter logs by level, request_id, or any field
+  - Real-time log streaming
+  - JSON-formatted structured logs with full context
+  - Time-range selection and log volume graphs
+
+**Query Loki Directly:**
+```bash
+# Query logs via Loki API
+curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={container_name="app"}' \
+  | jq '.data.result'
+
+# Get logs for last hour with error level
+curl -G -s "http://localhost:3100/loki/api/v1/query_range" \
+  --data-urlencode 'query={container_name="app"} |= "ERROR"' \
+  --data-urlencode "start=$(date -u -d '1 hour ago' +%s)000000000" \
+  | jq '.data.result'
+```
+
+**Local Development:**
+```bash
+# Logs are output to stdout/stderr in JSON format
+uv run python main.py
 ```
 
 ## License

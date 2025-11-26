@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     question_max_length: int = 2048
 
     enable_metrics_variable_name: str = "ENABLE_METRICS"
+    enable_tracing: bool = False
 
     workers: int = 1
     debug: bool = False

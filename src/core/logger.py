@@ -1,19 +1,33 @@
 import logging
 
+from opentelemetry import trace
+
 from src.core.config import settings
 from src.constants import REQUEST_ID_IN_CONTEXT
 
 
 class RequestIDFilter(logging.Filter):
-    """Add request_id from context to log records."""
+    """Add request_id and trace_id from context to log records."""
 
     def filter(self, record):
         record.request_id = REQUEST_ID_IN_CONTEXT.get()
+
+        # Add trace_id from OpenTelemetry context if tracing is enabled
+        if settings.enable_tracing:
+            span = trace.get_current_span()
+            if span and span.get_span_context().is_valid:
+                trace_id = format(span.get_span_context().trace_id, "032x")
+                record.trace_id = trace_id
+            else:
+                record.trace_id = ""
+        else:
+            record.trace_id = ""
+
         return True
 
 
 LOG_LEVEL = settings.log_level
-LOG_FORMAT = "%(asctime)s - [%(request_id)s] - %(name)s - %(levelname)s - %(message)s"
+LOG_FORMAT = "%(asctime)s - [%(request_id)s] - trace_id=%(trace_id)s - %(name)s - %(levelname)s - %(message)s"
 LOG_DEFAULT_HANDLERS = ["console"]
 
 LOGGING = {
@@ -68,6 +82,11 @@ LOGGING = {
         "uvicorn.access": {
             "handlers": ["access"],
             "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        # Suppress OpenTelemetry attribute warnings from LangGraph
+        "opentelemetry.attributes": {
+            "level": "ERROR",
             "propagate": False,
         },
     },

@@ -22,6 +22,12 @@ services:
       - "8008:8008"
     env_file:
       - .env
+    environment:
+      - OTEL_EXPORTER_OTLP_ENDPOINT=${OTLP_ENDPOINT:-http://alloy:4318}
+      - OTEL_METRICS_EXPORTER=none
+      - LANGSMITH_OTEL_ENABLED=true
+      - LANGSMITH_OTEL_ONLY=true
+      - LANGSMITH_TRACING=true
     depends_on:
       cachedb:
         condition: service_healthy
@@ -53,7 +59,7 @@ services:
     ports:
       - "3100:3100"
     volumes:
-      - ./etc/loki-config.yaml:/etc/loki/local-config.yaml
+      - ./etc/loki-config.yml:/etc/loki/local-config.yaml
       - loki_store:/loki
     healthcheck:
       test: ["CMD", "sh", "-c", "wget --quiet --tries=1 --output-document=- http://localhost:3100/ready | grep -q -w ready || exit 1" ]
@@ -68,6 +74,8 @@ services:
     privileged: true
     ports:
       - "12345:12345"
+      - "4317:4317"
+      - "4318:4318"
     command:
       - run
       - --server.http.listen-addr=0.0.0.0:12345
@@ -76,8 +84,8 @@ services:
     environment:
       ALLOY_DEPLOY_MODE: docker
     depends_on:
-      loki:
-        condition: service_healthy
+      - loki
+      - tempo
     volumes:
       - ./etc/alloy-config.alloy:/etc/alloy/config.alloy
       - /var/run/docker.sock:/var/run/docker.sock
@@ -88,19 +96,31 @@ services:
       retries: 5
       start_period: 10s
 
+  tempo:
+    image: grafana/tempo:latest
+    command: [ "-config.file=/etc/tempo.yml" ]
+    volumes:
+      - ./etc/tempo-config.yml:/etc/tempo.yml
+      - tempo-store:/var/tempo
+    ports:
+      - "3200:3200"
+    expose:
+      - "4317"
+      - "4318"
 
   grafana:
     image: grafana/grafana:latest
     ports:
       - "3000:3000"
     depends_on:
-      loki:
-        condition: service_healthy
-      prometheus:
-        condition: service_healthy
+      - loki
+      - prometheus
+      - tempo
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_LOG_LEVEL=warn
+      - GF_LOG_FILTERS=context:warn,publicdashboards:error
     volumes:
       - ./etc/grafana/:/etc/grafana/provisioning
       - grafana_store:/var/lib/grafana
@@ -116,3 +136,4 @@ volumes:
   prometheus_store:
   grafana_store:
   loki_store:
+  tempo-store:
